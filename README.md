@@ -23,17 +23,17 @@ cd json-bench
 - `java-dsljson/`: Gradle-based Java benchmark using DSL-JSON
 - `scripts/run_rust.sh`: builds and runs the Rust benchmark
 - `scripts/run_java.sh`: runs the Gradle Java benchmark
-- `scripts/run_all.sh`: convenience wrapper
+- `scripts/run_all.sh`: runs both benchmarks and prints a side-by-side comparison with winners
 
 ## 1. Generate a large JSON file
 
-Generate a moderately large dataset:
+Generate with defaults (20 000 items, 6 variants, 10 reviews):
 
 ```bash
-./scripts/generate_big_json.sh --output data/big.json
+./scripts/generate_big_json.sh
 ```
 
-Generate a larger one:
+Generate with custom parameters:
 
 ```bash
 ./scripts/generate_big_json.sh \
@@ -56,14 +56,14 @@ Docker must be available locally for generation and for `run_all.sh` when the JS
 Optional:
 
 ```bash
-./scripts/run_rust.sh data/big.json 15 5
+./scripts/run_rust.sh data/big.json 50 10
 ```
 
 Arguments:
 
-- `path`
-- `iterations` default: `10`
-- `warmup` default: `3`
+- `path` (default: `data/big.json`)
+- `iterations` (default: `50`)
+- `warmup` (default: `10`)
 
 ## 3. Run the Java benchmark
 
@@ -74,14 +74,14 @@ Arguments:
 Optional:
 
 ```bash
-JAVA_RELEASE=25 ./scripts/run_java.sh data/big.json 15 5
+JAVA_RELEASE=25 ./scripts/run_java.sh data/big.json 50 10
 ```
 
 Arguments:
 
-- `path`
-- `iterations` default: `50`
-- `warmup` default: `10`
+- `path` (default: `data/big.json`)
+- `iterations` (default: `50`)
+- `warmup` (default: `10`)
 
 Notes:
 
@@ -95,20 +95,44 @@ Notes:
 ```
 
 If the file does not exist, `run_all.sh` generates it first.
+After running both benchmarks, it prints a **COMPARISON** section with:
+
+- Side-by-side speed (deserialize / serialize avg ms)
+- Memory usage (Rust peak RSS vs Java heap + non-heap)
+- CPU time
+- Winner for each metric with speedup ratio and percentage
 
 ## Benchmark output
 
-Both programs print:
+Both programs print key=value metrics:
 
-- input size
-- warmup and measured iteration counts
-- deserialize timing summary
-- serialize timing summary
-- estimated throughput in MiB/s
+- `runtime`, `file`, `input_bytes`, `input_mib`
+- `iterations`, `warmup`
+- `deserialize_avg_ms`, `deserialize_min_ms`, `deserialize_max_ms`, `deserialize_throughput_mib_s`
+- `serialize_avg_ms`, `serialize_min_ms`, `serialize_max_ms`, `serialize_throughput_mib_s`
+- `serialized_bytes`
+- Memory: Rust reports `peak_rss_mib`; Java reports `heap_used_mib`, `heap_max_mib`, `non_heap_used_mib`, `total_memory_mib`
+- CPU: both report `cpu_total_s` (Rust also reports `cpu_user_s`, `cpu_sys_s`)
+
+## Optimizations applied
+
+### Rust (`sonic-rs`)
+
+- Zero-copy deserialization: all string fields borrow from the input buffer (`&'a str` with `#[serde(borrow)]`)
+- Serialization reuses a pre-allocated buffer via `sonic_rs::to_writer`
+- Release profile: fat LTO, single codegen unit, `panic = "abort"`
+- `target-cpu=native` via `.cargo/config.toml`
+
+### Java (DSL-JSON)
+
+- DSL-JSON with compile-time annotation processing (no reflection)
+- Native `JsonWriter` for serialization (avoids `ByteArrayOutputStream` synchronization)
+- `int[]` instead of `List<Integer>` for `relatedIds` (no boxing)
+- JVM flags: `-server`, G1GC with `AlwaysPreTouch`, `UseStringDeduplication`, `OptimizeStringConcat`
 
 ## Fairness notes
 
 - Both implementations deserialize the same generated payload into typed models.
 - Both implementations serialize the typed in-memory model back to JSON bytes.
-- The benchmark is a simple process-level harness, not JMH (java) or Criterion (rust).
+- The benchmark is a simple process-level harness, not JMH (Java) or Criterion (Rust).
 - Use multiple runs and a quiet machine if you want cleaner comparisons.
