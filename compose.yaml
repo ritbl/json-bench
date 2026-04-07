@@ -3,6 +3,5 @@ services:
     build:
       context: .
       dockerfile: datagen.Dockerfile
-    user: "${UID}:${GID}" # run container with same user as host (not root)
     volumes:
-      - .:/workdir
+      - ./.:/workdir

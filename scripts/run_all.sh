@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+# set -x # debugging
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 JSON_PATH="${1:-$ROOT_DIR/data/big.json}"
@@ -8,7 +9,11 @@ ITERATIONS="${2:-50}"
 WARMUP="${3:-10}"
 
 if [[ ! -f "$JSON_PATH" ]]; then
-  "$ROOT_DIR/scripts/generate_big_json.sh" --output "$JSON_PATH"
+  "$ROOT_DIR/scripts/generate_big_json.sh" --output "data/big.json" \
+      --items 5000 \
+      --variants 6 \
+      --reviews 10 \
+      --seed 100500
 fi
 
 # --- run benchmarks and capture output ---
