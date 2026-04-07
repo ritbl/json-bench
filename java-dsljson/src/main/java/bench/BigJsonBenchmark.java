@@ -1,16 +1,13 @@
 package bench;
 
 import com.dslplatform.json.DslJson;
+import com.dslplatform.json.JsonWriter;
 import com.dslplatform.json.runtime.Settings;
 
-import org.openjdk.jmh.infra.Blackhole;
-
-import java.io.ByteArrayOutputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,11 +29,9 @@ public final class BigJsonBenchmark {
         System.out.println("iterations=" + iterations);
         System.out.println("warmup=" + warmup);
 
-        Blackhole bh = new Blackhole("Today's password is swordfish. I understand instantiating Blackholes directly is dangerous.");
-
         for (int i = 0; i < warmup; i++) {
             Payload payload = json.deserialize(Payload.class, input, input.length);
-            bh.consume(payload);
+            sink(payload.items.size());
         }
 
         List<Long> deserializeRuns = new ArrayList<>(iterations);
@@ -44,29 +39,29 @@ public final class BigJsonBenchmark {
             long started = System.nanoTime();
             Payload payload = json.deserialize(Payload.class, input, input.length);
             long elapsed = System.nanoTime() - started;
-            bh.consume(payload);
+            sink(payload.items.size());
             deserializeRuns.add(elapsed);
         }
         Stats deserializeStats = summarize(deserializeRuns, input.length);
 
         Payload payload = json.deserialize(Payload.class, input, input.length);
-        ByteArrayOutputStream out = new ByteArrayOutputStream(input.length + input.length / 8);
+        JsonWriter writer = json.newWriter(input.length + input.length / 8);
         for (int i = 0; i < warmup; i++) {
-            out.reset();
-            json.serialize(payload, out);
-            bh.consume(out.size());
+            writer.reset();
+            json.serialize(writer, payload);
+            sink(writer.size());
         }
 
         List<Long> serializeRuns = new ArrayList<>(iterations);
         for (int i = 0; i < iterations; i++) {
-            out.reset();
+            writer.reset();
             long started = System.nanoTime();
-            json.serialize(payload, out);
+            json.serialize(writer, payload);
             long elapsed = System.nanoTime() - started;
-            bh.consume(out.size());
+            sink(writer.size());
             serializeRuns.add(elapsed);
         }
-        int serializedSize = out.size();
+        int serializedSize = writer.size();
         Stats serializeStats = summarize(serializeRuns, serializedSize);
 
         printStats("deserialize", deserializeStats);
@@ -116,9 +111,28 @@ public final class BigJsonBenchmark {
     }
 
     private static double nanosToMillis(double nanos) {
-        return Duration.ofNanos((long) nanos).toNanos() / 1_000_000.0;
+        return nanos / 1_000_000.0;
     }
 
     private record Stats(double avgNanos, long minNanos, long maxNanos, double throughputMibPerSec) {
+    }
+
+    /**
+     * Prevents dead code elimination by the JIT compiler.
+     * <p>
+     * This method acts as a "blackhole" to ensure that the value computed by the benchmark
+     * is actually used, preventing the compiler from optimizing away the computation entirely.
+     * The conditional check ensures the value is read, creating a side effect that cannot be removed.
+     * <p>
+     * Similar pattern is used in JMH (Java Microbenchmark Harness) Blackhole class.
+     * See: <a href="https://github.com/openjdk/jmh/blob/master/jmh-core/src/main/java/org/openjdk/jmh/infra/Blackhole.java">JMH Blackhole</a>
+     *
+     * @param value the computed value to consume
+     */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private static void sink(int value) {
+        if (value == Integer.MIN_VALUE) {
+            throw new AssertionError("never");
+        }
     }
 }

@@ -32,7 +32,7 @@ class Item {
     public List<Attribute> attributes;
     public List<Variant> variants;
     public List<Review> reviews;
-    public List<Integer> relatedIds;
+    public int[] relatedIds;
     public Metrics metrics;
 }
 
@@ -107,4 +107,3 @@ class Metrics {
     public long returns;
     public double conversionRate;
 }
-

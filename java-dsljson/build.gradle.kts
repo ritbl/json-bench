@@ -16,7 +16,6 @@ repositories {
 dependencies {
     implementation("com.dslplatform:dsl-json:2.0.2")
     annotationProcessor("com.dslplatform:dsl-json:2.0.2")
-    implementation("org.openjdk.jmh:jmh-core:1.37")
 }
 
 java {
@@ -37,4 +36,11 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.named<JavaExec>("run") {
     args(jsonPath, iterations, warmup)
+    jvmArgs(
+        "-server",
+        "-XX:+UseG1GC",
+        "-XX:+AlwaysPreTouch",
+        "-XX:+UseStringDeduplication",
+        "-XX:+OptimizeStringConcat",
+    )
 }
