@@ -202,6 +202,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     print_stats("serialize", &serialize_stats);
     println!("serialized_bytes={serialized_size}");
 
+    // --- resource usage ---
+    let usage = get_rusage();
+    // macOS reports ru_maxrss in bytes
+    let peak_rss_mib = usage.ru_maxrss as f64 / (1024.0 * 1024.0);
+    let user_cpu_s = usage.ru_utime.tv_sec as f64 + usage.ru_utime.tv_usec as f64 / 1_000_000.0;
+    let sys_cpu_s = usage.ru_stime.tv_sec as f64 + usage.ru_stime.tv_usec as f64 / 1_000_000.0;
+    let total_cpu_s = user_cpu_s + sys_cpu_s;
+    println!("peak_rss_mib={peak_rss_mib:.3}");
+    println!("cpu_user_s={user_cpu_s:.3}");
+    println!("cpu_sys_s={sys_cpu_s:.3}");
+    println!("cpu_total_s={total_cpu_s:.3}");
+
     Ok(())
 }
 
@@ -231,4 +243,38 @@ fn print_stats(label: &str, stats: &Stats) {
     println!("{label}_min_ms={:.3}", stats.min_ms);
     println!("{label}_max_ms={:.3}", stats.max_ms);
     println!("{label}_throughput_mib_s={:.3}", stats.throughput_mib_s);
+}
+
+/// Retrieves resource usage statistics for the current process.
+///
+/// This function calls the POSIX `getrusage` system call with `RUSAGE_SELF`
+/// to obtain information about resource consumption (CPU time, memory, etc.)
+/// for the calling process.
+///
+/// # Returns
+///
+/// A `libc::rusage` struct containing:
+/// - `ru_utime`: user CPU time used
+/// - `ru_stime`: system CPU time used
+/// - `ru_maxrss`: maximum resident set size (in bytes on macOS, kilobytes on Linux)
+/// - other platform-specific resource usage metrics
+///
+/// # Safety
+///
+/// This function uses `unsafe` internally because it:
+/// - Zero-initializes a `libc::rusage` struct via `std::mem::zeroed()`
+/// - Calls the FFI function `libc::getrusage()`
+///
+/// The safety is guaranteed because:
+/// - `libc::rusage` is a C struct with no invalid bit patterns, making zero-initialization safe
+/// - `getrusage(RUSAGE_SELF, ...)` is guaranteed to succeed and populate the struct with valid data
+fn get_rusage() -> libc::rusage {
+    // SAFETY: `libc::rusage` is a C struct with no invalid bit patterns,
+    // so zero-initialization is safe. The `getrusage` call with `RUSAGE_SELF`
+    // is guaranteed to succeed and will populate the `usage` struct with valid data.
+    unsafe {
+        let mut usage = std::mem::zeroed::<libc::rusage>();
+        libc::getrusage(libc::RUSAGE_SELF, &mut usage);
+        usage
+    }
 }

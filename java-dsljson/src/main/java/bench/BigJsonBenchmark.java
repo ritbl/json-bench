@@ -6,6 +6,8 @@ import com.dslplatform.json.runtime.Settings;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.ByteArrayOutputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -70,6 +72,22 @@ public final class BigJsonBenchmark {
         printStats("deserialize", deserializeStats);
         printStats("serialize", serializeStats);
         System.out.println("serialized_bytes=" + serializedSize);
+
+        // --- resource usage ---
+        MemoryMXBean memBean = ManagementFactory.getMemoryMXBean();
+        long heapUsed = memBean.getHeapMemoryUsage().getUsed();
+        long heapMax = memBean.getHeapMemoryUsage().getMax();
+        long nonHeapUsed = memBean.getNonHeapMemoryUsage().getUsed();
+        long totalUsed = heapUsed + nonHeapUsed;
+        System.out.printf("heap_used_mib=%.3f%n", bytesToMib(heapUsed));
+        System.out.printf("heap_max_mib=%.3f%n", heapMax > 0 ? bytesToMib(heapMax) : -1.0);
+        System.out.printf("non_heap_used_mib=%.3f%n", bytesToMib(nonHeapUsed));
+        System.out.printf("total_memory_mib=%.3f%n", bytesToMib(totalUsed));
+
+        com.sun.management.OperatingSystemMXBean osBean =
+            (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+        double cpuTime = osBean.getProcessCpuTime() / 1_000_000_000.0;
+        System.out.printf("cpu_total_s=%.3f%n", cpuTime);
     }
 
     private static Stats summarize(List<Long> runs, int bytesPerOp) {
@@ -93,7 +111,7 @@ public final class BigJsonBenchmark {
         System.out.printf("%s_throughput_mib_s=%.3f%n", label, stats.throughputMibPerSec);
     }
 
-    private static double bytesToMib(int bytes) {
+    private static double bytesToMib(long bytes) {
         return bytes / (1024.0 * 1024.0);
     }
 
