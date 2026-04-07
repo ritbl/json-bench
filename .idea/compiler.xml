@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <option name="dsljson.generatedmarker" value="" />
+        <processorPath useClasspath="false">
+          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.dslplatform/dsl-json/2.0.2/828e5cd5973c1fd7390a1d3208e7909d6ce73c23/dsl-json-2.0.2.jar" />
+        </processorPath>
+        <module name="java-dsljson.main" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="java-dsljson" options="-Adsljson.generatedmarker=" />
+      <module name="java-dsljson.main" options="-Adsljson.generatedmarker=" />
+      <module name="java-dsljson.test" options="-Adsljson.generatedmarker=" />
+    </option>
+  </component>
+</project>

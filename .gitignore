@@ -1,0 +1,4 @@
+data/*.json
+rust-sonic/target
+java-dsljson/build
+java-dsljson/.gradle
