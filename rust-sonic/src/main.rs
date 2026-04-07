@@ -177,8 +177,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // --- warmup serialization ---
     let payload: Payload = sonic_rs::from_slice(&input)?;
-    let estimated_size = input_len + input_len / 8;
-    let mut buf: Vec<u8> = Vec::with_capacity(estimated_size);
+    let mut buf: Vec<u8> = Vec::with_capacity(input_len);
     for _ in 0..warmup {
         buf.clear();
         sonic_rs::to_writer(&mut buf, &payload)?;
